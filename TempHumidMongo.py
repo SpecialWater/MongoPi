@@ -12,7 +12,36 @@ import Adafruit_CharLCD as LCD
 import Adafruit_DHT
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from pymongo import MongoClient
+from db_utils import db_connect
+from db_utils import formatResult
+from db_utils import insertSQL
+from datetime import datetime
+
+# Connect to database
+con = db_connect('SensorRead.db', timeout = 10)
+cur = con.cursor()
+#cur.execute("SELECT name FROM sqlite_master where type = 'table'")
+#tables = cur.fetchall()
+
+# Create table
+currtime = datetime.now()
+currtime = currtime.strftime("%Y_%m_%d_%H_%M_%S")
+
+tableName = "TempHumid" + currtime
+table_sql = """
+CREATE TABLE %s (
+        id integer,
+        time_record datetime,
+        temp integer,
+        humid integer)""" % tableName
+        
+cur.execute(table_sql)
+
+
+# Get table names from master schema
+#cur.execute("SELECT name FROM sqlite_master where type = 'table'")
+#tables = cur.fetchall()
+#print(tables)
 
 # Raspberry Pi pin setup
 lcd_rs = 25
@@ -26,13 +55,11 @@ lcd_backlight = 2
 # Define LCD column and row size for 16x2 LCD.
 lcd_columns = 16
 lcd_rows = 2
-
 lcd = LCD.Adafruit_CharLCD(lcd_rs, lcd_en, lcd_d4, lcd_d5, lcd_d6, lcd_d7, lcd_columns, lcd_rows, lcd_backlight)
-
 
 # Parameters
 x_len = 100         # Number of points to display
-y_range = [20, 100]  # Range of possible Y values to display
+y_range = [10, 100]  # Range of possible Y values to display
 
 # Create figure for plotting
 fig = plt.figure()
@@ -56,15 +83,20 @@ ax1.set_title('Temp')
 ax2.set_title('Humidity')
 ax1.set_ylabel('Temperature (deg F)')
 ax2.set_ylabel('Humidity (%)')
+ax1.grid()
+ax2.grid()
 
 plt.subplots_adjust(hspace=.6)
 
 # This function is called periodically from FuncAnimation
-def animate(i, ys1, ys2):
+def animate(i, ys1, ys2, con, cur, tableName):
 
     # Read temperature (Celsius) from TMP102
     humidity, temperature = Adafruit_DHT.read_retry(11, 4, delay_seconds=.1)
     temperature = temperature * 9 / 5 + 32
+    
+    # Insert readings into sqlLite db
+    insertSQL(con, cur, tableName, 1, datetime.now(), temperature, humidity)
     
     lcd.show_cursor(False)
     lcd.set_cursor(0,0)
@@ -88,13 +120,13 @@ def animate(i, ys1, ys2):
 # Set up plot to call animate() function periodically
 ani = animation.FuncAnimation(fig,
     animate,
-    fargs=(ys1,ys2),
+    fargs=(ys1,ys2, con, cur, tableName),
     interval=100,
     blit=True)
 plt.show()
 
     
     
-
+#   formatResult(cur, tableName)
 
 
