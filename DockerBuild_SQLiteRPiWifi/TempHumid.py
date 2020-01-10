@@ -70,8 +70,13 @@ while True:
             "value": humidity}
     
     # Insert readings into sqlLite db
-    check1 = postRPi(http, json_var=json.dumps(json_var_temp))
-    check2 = postRPi(http, json_var=json.dumps(json_var_humidity))
+    try:
+        check1 = postRPi(http, json_var=json.dumps(json_var_temp))
+        check2 = postRPi(http, json_var=json.dumps(json_var_humidity))
+    except:
+        check1 = 500
+        check2 = 500
+        pass
     
     # Check if the write to RPi failed and if so, store locally
     if(check1 != 200 or check2 != 200):
