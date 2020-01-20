@@ -15,7 +15,13 @@ from db_utils import postRPi
 from db_utils import insertSQL
 from db_utils import db_connect
 from datetime import datetime
-import sqlite3
+import RPi.GPIO as GPIO
+from time import sleep
+GPIO.setwarnings(False) 
+GPIO.setup(21, GPIO.OUT, initial=GPIO.LOW) # Green light - writing to server
+GPIO.setup(20, GPIO.OUT, initial=GPIO.LOW) # Orange Light - writing local cache to server
+GPIO.setup(16, GPIO.OUT, initial=GPIO.LOW) # Red Light - writing to local cache, cannot connect to server
+
 
 # Connect to database
 con = db_connect('SensorRead.db', timeout = 10)
@@ -84,13 +90,21 @@ while True:
         insertSQL(con, cur, tableName, 1, datetime.now(), temperature, humidity)
         PriorFailure = True
         print('Writing to SQL')
+        GPIO.output(16, GPIO.HIGH) # Turn on
+        sleep(.2) # Sleep for .2 second
+        GPIO.output(16, GPIO.LOW) # Turn off
     else:
         print('Writinng to Server, temp: ' + str(temperature) + ' , humidity: ' + str(humidity))
+        GPIO.output(21, GPIO.HIGH) # Turn on
+        sleep(.2) # Sleep for .2 second
+        GPIO.output(21, GPIO.LOW) # Turn off
+        
     
     # If there is local storage and connection has been re-established
     if PriorFailure and (check1 == 200 and check2 == 200):
         PriorFailure = False
         print('Reading from SQL into Server')
+        GPIO.output(20, GPIO.HIGH) # Turn on
         # Get local storage and loop through to write back to server
         cur.execute("SELECT * FROM %s" % tableName)
         selectString = cur.fetchall()
@@ -107,6 +121,7 @@ while True:
         # Remove local storage thas has been written back
         cur.execute("DELETE FROM %s" % tableName)
         print('done')
+        GPIO.output(20, GPIO.LOW) # Turn off
         
     lcd.show_cursor(False)
     lcd.set_cursor(0,0)
